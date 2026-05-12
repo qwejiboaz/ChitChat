@@ -206,8 +206,8 @@
     flex-direction: column;
     height: 100vh;
     max-height: 100vh;
-    padding: 10px 14px;
-    gap: 8px;
+    padding: 8px 12px;
+    gap: 6px;
     overflow: hidden;
   }
   #game-screen.active { display: flex; }
@@ -218,21 +218,51 @@
     align-items: center;
     flex-shrink: 0;
   }
-  .game-header h2 { font-size: 1.4rem; color: var(--gold); }
+  .game-header h2 { font-size: 1.3rem; color: var(--gold); }
+  .game-header-right { display: flex; align-items: center; gap: 8px; }
   .round-badge {
     background: rgba(0,0,0,0.3);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 20px;
-    padding: 4px 14px;
-    font-size: 0.9rem;
+    padding: 4px 12px;
+    font-size: 0.85rem;
     opacity: 0.8;
   }
+  .theme-toggle-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: var(--cream);
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .theme-toggle-btn:hover { background: rgba(255,255,255,0.2); }
+
+  /* In-game theme picker */
+  .ingame-theme-picker {
+    display: none;
+    position: fixed;
+    top: 50px; right: 12px;
+    background: #1a2e20;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 14px;
+    z-index: 50;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .ingame-theme-picker.show { display: block; }
+  .ingame-theme-picker p { font-size: 0.8rem; opacity: 0.6; margin-bottom: 8px; }
+  .ingame-theme-picker .theme-swatches { gap: 8px; }
+  .ingame-theme-picker .theme-swatch { width: 36px; height: 36px; }
+  .ingame-theme-picker .theme-swatch span { display: none; }
 
   .players-strip {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     overflow-x: auto;
-    padding: 2px 0;
+    padding: 1px 0;
     scrollbar-width: none;
     flex-shrink: 0;
   }
@@ -241,9 +271,9 @@
   .player-chip-card {
     background: rgba(0,0,0,0.25);
     border: 2px solid rgba(255,255,255,0.1);
-    border-radius: 10px;
-    padding: 6px 12px;
-    min-width: 90px;
+    border-radius: 8px;
+    padding: 5px 10px;
+    min-width: 80px;
     text-align: center;
     flex-shrink: 0;
     transition: border-color 0.2s;
@@ -254,15 +284,15 @@
   }
   .player-chip-card.eliminated { opacity: 0.4; }
   .player-chip-card .pname {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 90px;
+    max-width: 80px;
   }
-  .chips-display { display: flex; gap: 4px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
-  .chip { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); }
+  .chips-display { display: flex; gap: 3px; justify-content: center; margin-top: 3px; flex-wrap: wrap; }
+  .chip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); }
   .chip.red { background: var(--chip-red); }
   .chip.honor { background: transparent; border: 2px dashed var(--gold); }
   .chip.gone { background: transparent; border: 2px solid rgba(255,255,255,0.1); }
@@ -270,59 +300,54 @@
   .turn-banner {
     background: rgba(201,168,76,0.15);
     border: 1px solid rgba(201,168,76,0.3);
-    border-radius: 10px;
-    padding: 8px 14px;
+    border-radius: 8px;
+    padding: 6px 12px;
     text-align: center;
     flex-shrink: 0;
   }
-  .turn-banner .whose-turn { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--gold); }
-  .turn-banner .sub { font-size: 0.85rem; opacity: 0.7; margin-top: 2px; }
+  .turn-banner .whose-turn { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--gold); }
+  .turn-banner .sub { font-size: 0.8rem; opacity: 0.7; margin-top: 1px; }
 
-  /* Hand area */
+  /* Hand area — no flex:1, just natural size */
   .hand-area {
     background: rgba(0,0,0,0.2);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 12px 16px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    flex-shrink: 0;
   }
   .hand-label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     opacity: 0.6;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .cards-row {
     display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
     justify-content: center;
   }
 
   .card {
-    width: 90px; height: 130px;
+    width: 85px; height: 122px;
     background: var(--card-bg);
-    border-radius: 9px;
+    border-radius: 8px;
     border: 1px solid #ccc;
-    box-shadow: 2px 3px 10px rgba(0,0,0,0.3);
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
-    padding: 6px;
+    padding: 5px;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
     position: relative;
     user-select: none;
   }
-  .card:hover { transform: translateY(-6px); box-shadow: 2px 8px 18px rgba(0,0,0,0.4); }
+  .card:hover { transform: translateY(-5px); box-shadow: 2px 7px 16px rgba(0,0,0,0.4); }
   .card.selected {
-    transform: translateY(-12px);
-    box-shadow: 0 0 0 3px var(--gold), 2px 8px 18px rgba(0,0,0,0.4);
+    transform: translateY(-10px);
+    box-shadow: 0 0 0 3px var(--gold), 2px 7px 16px rgba(0,0,0,0.4);
   }
   .card.face-down {
     background: linear-gradient(135deg, var(--deck-a) 0%, var(--deck-b) 50%, var(--deck-a) 100%);
@@ -330,7 +355,7 @@
   }
   .card.face-down:hover { transform: none; }
 
-  .card-corner { font-weight: 700; line-height: 1; font-size: 0.95rem; }
+  .card-corner { font-weight: 700; line-height: 1; font-size: 0.9rem; }
   .card-corner.top { align-self: flex-start; }
   .card-corner.bottom { align-self: flex-end; transform: rotate(180deg); }
   .card-suit-center {
@@ -338,59 +363,59 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 1.8rem;
   }
   .red-card .card-corner, .red-card .card-suit-center { color: var(--red); }
   .black-card .card-corner, .black-card .card-suit-center { color: var(--black); }
 
   .table-area {
     display: flex;
-    gap: 20px;
+    gap: 16px;
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
   }
-  .pile-slot { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-  .pile-label { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.08em; }
+  .pile-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pile-label { font-size: 0.7rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.08em; }
 
   .deck-card {
-    width: 90px; height: 130px;
+    width: 85px; height: 122px;
     background: linear-gradient(135deg, var(--deck-a) 0%, var(--deck-b) 50%, var(--deck-a) 100%);
-    border-radius: 9px;
+    border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.2);
-    box-shadow: 2px 3px 10px rgba(0,0,0,0.4);
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.4);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: rgba(255,255,255,0.4);
     transition: transform 0.15s;
     user-select: none;
   }
   .deck-card:hover { transform: translateY(-3px); }
   .deck-card.empty { opacity: 0.3; cursor: not-allowed; }
-  .deck-count { font-size: 0.8rem; opacity: 0.6; }
+  .deck-count { font-size: 0.75rem; opacity: 0.6; }
 
   .hand-score {
     text-align: center;
-    margin-top: 10px;
-    font-size: 1rem;
+    margin-top: 8px;
+    font-size: 0.95rem;
     opacity: 0.8;
   }
-  .hand-score span { font-weight: 700; color: var(--gold); font-size: 1.3rem; }
+  .hand-score span { font-weight: 700; color: var(--gold); font-size: 1.2rem; }
 
   .action-area {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
     justify-content: center;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
   .btn-action {
-    padding: 12px 20px;
-    border-radius: 10px;
+    padding: 11px 16px;
+    border-radius: 9px;
     font-family: 'Source Sans 3', sans-serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     border: none;
@@ -407,10 +432,10 @@
 
   .instruction-text {
     text-align: center;
-    font-size: 0.85rem;
-    opacity: 0.6;
+    font-size: 0.8rem;
+    opacity: 0.55;
     flex-shrink: 0;
-    min-height: 20px;
+    min-height: 18px;
   }
 
   /* ── ROUND END SCREEN ── */
@@ -550,7 +575,22 @@
 <div id="game-screen" class="screen">
   <div class="game-header">
     <h2>ChitChat</h2>
-    <div class="round-badge" id="round-badge">Round 1</div>
+    <div class="game-header-right">
+      <div class="round-badge" id="round-badge">Round 1</div>
+      <button class="theme-toggle-btn" onclick="toggleThemePicker()">🎨 Theme</button>
+    </div>
+  </div>
+
+  <!-- In-game theme picker dropdown -->
+  <div class="ingame-theme-picker" id="ingame-theme-picker">
+    <p>Change Theme</p>
+    <div class="theme-swatches">
+      <div class="theme-swatch swatch-classic" onclick="setTheme('classic');toggleThemePicker()" title="Classic"></div>
+      <div class="theme-swatch swatch-navy" onclick="setTheme('navy');toggleThemePicker()" title="Midnight"></div>
+      <div class="theme-swatch swatch-burgundy" onclick="setTheme('burgundy');toggleThemePicker()" title="Burgundy"></div>
+      <div class="theme-swatch swatch-slate" onclick="setTheme('slate');toggleThemePicker()" title="Slate"></div>
+      <div class="theme-swatch swatch-walnut" onclick="setTheme('walnut');toggleThemePicker()" title="Walnut"></div>
+    </div>
   </div>
 
   <div class="players-strip" id="players-strip"></div>
@@ -581,7 +621,7 @@
   <div class="instruction-text" id="instruction-text"></div>
 
   <div class="action-area">
-    <button class="btn-action btn-draw-deck" id="btn-draw-deck" onclick="drawFromDeck()">Draw from Deck</button>
+    <button class="btn-action btn-draw-deck" id="btn-draw-deck" onclick="drawFromDeck()">Draw Deck</button>
     <button class="btn-action btn-draw-discard" id="btn-draw-discard" onclick="drawFromDiscard()">Draw Discard</button>
     <button class="btn-action btn-discard" id="btn-discard" onclick="discardSelected()">Discard</button>
     <button class="btn-action btn-knock" id="btn-knock" onclick="knock()">Knock</button>
@@ -1296,6 +1336,20 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+function toggleThemePicker() {
+  const picker = document.getElementById('ingame-theme-picker');
+  picker.classList.toggle('show');
+}
+
+// Close theme picker if tapping outside
+document.addEventListener('click', function(e) {
+  const picker = document.getElementById('ingame-theme-picker');
+  const btn = document.querySelector('.theme-toggle-btn');
+  if (picker && !picker.contains(e.target) && e.target !== btn) {
+    picker.classList.remove('show');
+  }
+});
 
 // Init
 updateDeckInfo();
