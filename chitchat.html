@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chit-Chat</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Sans+3:wght@300;400;600&display=swap');
+
+  :root {
+    --green: #2d5a3d;
+    --green-light: #3a7a52;
+    --felt: #1e4a2e;
+    --cream: #f5f0e8;
+    --card-bg: #ffffff;
+    --red: #c0392b;
+    --black: #1a1a1a;
+    --gold: #c9a84c;
+    --chip-red: #e74c3c;
+    --chip-blue: #2980b9;
+    --chip-white: #ecf0f1;
+    --shadow: rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: radial-gradient(ellipse at center, var(--green-light) 0%, var(--felt) 60%, #0f2e1a 100%);
+    min-height: 100vh;
+    color: var(--cream);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3 { font-family: 'Playfair Display', serif; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; padding: 28px; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen { gap: 28px; }
+  .title-block { text-align: center; }
+  .title-block h1 { font-size: 4rem; color: var(--gold); text-shadow: 2px 2px 8px rgba(0,0,0,0.5); }
+  .title-block p { color: var(--cream); opacity: 0.7; font-size: 1.2rem; margin-top: 6px; }
+
+  .setup-card {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 30px;
+    width: 100%;
+    max-width: 560px;
+  }
+  .setup-card h3 { margin-bottom: 18px; color: var(--gold); font-size: 1.3rem; }
+
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .player-row input {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: var(--cream);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 1.1rem;
+  }
+  .player-row input::placeholder { opacity: 0.4; }
+  .player-row input:focus { outline: none; border-color: var(--gold); }
+
+  .btn-icon {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: var(--cream);
+    width: 46px; height: 46px;
+    cursor: pointer;
+    font-size: 1.3rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.2); }
+
+  .deck-info {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    font-size: 1rem;
+    opacity: 0.8;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--black);
+    border: none;
+    border-radius: 12px;
+    padding: 18px 52px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(201,168,76,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.1);
+    color: var(--cream);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 13px 28px;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.18); }
+
+  /* ── HANDOFF SCREEN ── */
+  #handoff-screen { gap: 28px; text-align: center; }
+  #handoff-screen h2 { font-size: 2.8rem; color: var(--gold); }
+  #handoff-screen p { opacity: 0.8; max-width: 420px; line-height: 1.7; font-size: 1.2rem; }
+  .handoff-chips { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
+
+  /* ── GAME SCREEN ── */
+  #game-screen {
+    display: none;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 16px 20px;
+    gap: 14px;
+  }
+  #game-screen.active { display: flex; }
+
+  .game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+  }
+  .game-header h2 { font-size: 1.8rem; color: var(--gold); }
+  .round-badge {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 1rem;
+    opacity: 0.8;
+  }
+
+  /* Player strip at top */
+  .players-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 0;
+    scrollbar-width: none;
+  }
+  .players-strip::-webkit-scrollbar { display: none; }
+
+  .player-chip-card {
+    background: rgba(0,0,0,0.25);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-width: 110px;
+    text-align: center;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+  }
+  .player-chip-card.current-player {
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.1);
+  }
+  .player-chip-card.eliminated {
+    opacity: 0.4;
+  }
+  .player-chip-card .pname {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+  }
+  .chips-display { display: flex; gap: 5px; justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+  .chip {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+  }
+  .chip.red { background: var(--chip-red); }
+  .chip.honor { background: transparent; border: 2px dashed var(--gold); }
+  .chip.gone { background: transparent; border: 2px solid rgba(255,255,255,0.1); }
+
+  /* Turn indicator */
+  .turn-banner {
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 12px;
+    padding: 14px 20px;
+    text-align: center;
+  }
+  .turn-banner .whose-turn { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--gold); }
+  .turn-banner .sub { font-size: 1rem; opacity: 0.7; margin-top: 4px; }
+
+  /* Hand area */
+  .hand-area {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .hand-label {
+    font-size: 0.95rem;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+  }
+
+  /* Cards */
+  .cards-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .card {
+    width: 110px; height: 158px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    box-shadow: 2px 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    user-select: none;
+  }
+  .card:hover { transform: translateY(-8px); box-shadow: 2px 10px 22px rgba(0,0,0,0.4); }
+  .card.selected {
+    transform: translateY(-14px);
+    box-shadow: 0 0 0 4px var(--gold), 2px 10px 22px rgba(0,0,0,0.4);
+  }
+  .card.face-down {
+    background: linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #1a5276 100%);
+    cursor: default;
+  }
+  .card.face-down:hover { transform: none; }
+
+  .card-corner { font-weight: 700; line-height: 1; font-size: 1.1rem; }
+  .card-corner.top { align-self: flex-start; }
+  .card-corner.bottom { align-self: flex-end; transform: rotate(180deg); }
+  .card-suit-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.4rem;
+  }
+  .red-card .card-corner, .red-card .card-suit-center { color: var(--red); }
+  .black-card .card-corner, .black-card .card-suit-center { color: var(--black); }
+
+  /* Discard / Deck area */
+  .table-area {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
+  }
+  .pile-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .pile-label { font-size: 0.9rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .deck-card {
+    width: 110px; height: 158px;
+    background: linear-gradient(135deg, #1a5276 0%, #2e86c1 50%, #1a5276 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.4);
+    transition: transform 0.15s;
+    user-select: none;
+  }
+  .deck-card:hover { transform: translateY(-4px); }
+  .deck-card.empty { opacity: 0.3; cursor: not-allowed; }
+  .deck-count { font-size: 0.9rem; opacity: 0.6; }
+
+  /* Score display in hand */
+  .hand-score {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 1.1rem;
+    opacity: 0.8;
+  }
+  .hand-score span { font-weight: 700; color: var(--gold); font-size: 1.5rem; }
+
+  /* Action buttons */
+  .action-area {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 6px 0;
+  }
+
+  .btn-action {
+    padding: 16px 28px;
+    border-radius: 12px;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .btn-action:active { transform: scale(0.97); }
+  .btn-action:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-draw-deck { background: #2980b9; color: white; }
+  .btn-draw-discard { background: #27ae60; color: white; }
+  .btn-discard { background: #e67e22; color: white; }
+  .btn-knock { background: var(--gold); color: var(--black); font-weight: 700; }
+  .btn-knock:hover { background: #d4ac3a; }
+
+  .instruction-text {
+    text-align: center;
+    font-size: 1rem;
+    opacity: 0.65;
+    padding: 4px 0;
+    min-height: 26px;
+  }
+
+  /* ── ROUND END SCREEN ── */
+  #roundend-screen { gap: 20px; }
+  #roundend-screen h2 { font-size: 2.4rem; color: var(--gold); text-align: center; }
+
+  .results-table {
+    width: 100%;
+    max-width: 520px;
+    border-collapse: collapse;
+  }
+  .results-table th {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+    font-size: 1rem;
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .results-table td {
+    padding: 10px 16px;
+    font-size: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .results-table tr.winner td { color: #2ecc71; font-weight: 700; }
+  .results-table tr.lost-chip td { color: #e74c3c; }
+
+  .chip-change {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .chip-change.lost { color: #e74c3c; }
+  .chip-change.safe { color: #2ecc71; }
+
+  /* ── GAME OVER SCREEN ── */
+  #gameover-screen { gap: 24px; text-align: center; }
+  #gameover-screen h2 { font-size: 3rem; color: var(--gold); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #1e3a2a;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 340px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0,0,0,0.85);
+    color: var(--cream);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal h3 { font-size: 1.8rem; color: var(--gold); margin-bottom: 12px; }
+  .modal p { opacity: 0.8; line-height: 1.6; margin-bottom: 20px; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ SETUP -->
+<div id="setup-screen" class="screen active">
+  <div class="title-block">
+    <h1>Chit-Chat</h1>
+    <p>Family Card Game · Based on 31</p>
+  </div>
+
+  <div class="setup-card">
+    <h3>Players</h3>
+    <div id="player-inputs">
+      <div class="player-row">
+        <input type="text" placeholder="Player 1" maxlength="20">
+        <button class="btn-icon" onclick="removePlayer(this)" title="Remove">✕</button>
+      </div>
+      <div class="player-row">
+        <input type="text" placeholder="Player 2" maxlength="20">
+        <button class="btn-icon" onclick="removePlayer(this)" title="Remove">✕</button>
+      </div>
+    </div>
+    <button class="btn-secondary" onclick="addPlayer()" style="width:100%;margin-top:10px;">+ Add Player</button>
+    <div class="deck-info" id="deck-info">1 deck · 52 cards</div>
+  </div>
+
+  <button class="btn-primary" onclick="startGame()" id="start-btn">Deal Cards</button>
+</div>
+
+<!-- ══════════════════════════════════════════ HANDOFF -->
+<div id="handoff-screen" class="screen">
+  <h2 id="handoff-name"></h2>
+  <p id="handoff-msg"></p>
+  <div class="handoff-chips" id="handoff-chips"></div>
+  <button class="btn-primary" onclick="proceedFromHandoff()">I'm Ready →</button>
+</div>
+
+<!-- ══════════════════════════════════════════ GAME -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <h2>Chit-Chat</h2>
+    <div class="round-badge" id="round-badge">Round 1</div>
+  </div>
+
+  <div class="players-strip" id="players-strip"></div>
+
+  <div class="turn-banner">
+    <div class="whose-turn" id="whose-turn"></div>
+    <div class="sub" id="turn-sub"></div>
+  </div>
+
+  <div class="table-area">
+    <div class="pile-slot">
+      <div class="pile-label">Deck</div>
+      <div class="deck-card" id="deck-pile" onclick="drawFromDeck()">🂠</div>
+      <div class="deck-count" id="deck-count"></div>
+    </div>
+    <div class="pile-slot">
+      <div class="pile-label">Discard</div>
+      <div id="discard-pile" onclick="drawFromDiscard()"></div>
+    </div>
+  </div>
+
+  <div class="hand-area">
+    <div class="hand-label">Your Hand</div>
+    <div class="cards-row" id="hand-cards"></div>
+    <div class="hand-score">Best score: <span id="hand-score">0</span></div>
+  </div>
+
+  <div class="instruction-text" id="instruction-text"></div>
+
+  <div class="action-area">
+    <button class="btn-action btn-draw-deck" id="btn-draw-deck" onclick="drawFromDeck()">Draw from Deck</button>
+    <button class="btn-action btn-draw-discard" id="btn-draw-discard" onclick="drawFromDiscard()">Draw Discard</button>
+    <button class="btn-action btn-discard" id="btn-discard" onclick="discardSelected()">Discard</button>
+    <button class="btn-action btn-knock" id="btn-knock" onclick="knock()">Knock</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ ROUND END -->
+<div id="roundend-screen" class="screen">
+  <h2 id="roundend-title"></h2>
+  <table class="results-table" id="results-table">
+    <thead><tr><th>Player</th><th>Hand</th><th>Chips</th><th></th></tr></thead>
+    <tbody id="results-body"></tbody>
+  </table>
+  <button class="btn-primary" onclick="nextRound()" id="next-round-btn">Next Round</button>
+</div>
+
+<!-- ══════════════════════════════════════════ GAME OVER -->
+<div id="gameover-screen" class="screen">
+  <h2>🏆 Game Over!</h2>
+  <p id="winner-text" style="font-size:1.3rem;color:var(--gold);font-family:'Playfair Display',serif;"></p>
+  <p style="opacity:0.6;margin-top:8px;" id="gameover-sub"></p>
+  <button class="btn-primary" onclick="location.reload()" style="margin-top:12px;">Play Again</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p id="modal-msg"></p>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ═══════════════════════════════════════════════════════
+const SUITS = ['♠','♥','♦','♣'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUIT_SYMBOL = { '♠':'black-card', '♣':'black-card', '♥':'red-card', '♦':'red-card' };
+
+let state = {};
+
+// ═══════════════════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════════════════
+function addPlayer() {
+  const cont = document.getElementById('player-inputs');
+  const count = cont.querySelectorAll('.player-row').length;
+  if (count >= 15) { showToast('Maximum 15 players'); return; }
+  const div = document.createElement('div');
+  div.className = 'player-row';
+  div.innerHTML = `<input type="text" placeholder="Player ${count+1}" maxlength="20">
+    <button class="btn-icon" onclick="removePlayer(this)">✕</button>`;
+  cont.appendChild(div);
+  updateDeckInfo();
+}
+
+function removePlayer(btn) {
+  const cont = document.getElementById('player-inputs');
+  if (cont.querySelectorAll('.player-row').length <= 2) { showToast('Need at least 2 players'); return; }
+  btn.parentElement.remove();
+  updateDeckInfo();
+}
+
+function updateDeckInfo() {
+  const count = document.getElementById('player-inputs').querySelectorAll('.player-row').length;
+  const decks = count >= 7 ? 2 : 1;
+  document.getElementById('deck-info').textContent = `${decks} deck${decks>1?'s':''} · ${decks*52} cards · ${count} players`;
+}
+
+function startGame() {
+  const inputs = document.getElementById('player-inputs').querySelectorAll('input');
+  const names = [];
+  inputs.forEach((inp, i) => {
+    const n = inp.value.trim() || `Player ${i+1}`;
+    names.push(n);
+  });
+  if (names.length < 2) { showToast('Need at least 2 players'); return; }
+
+  const decks = names.length >= 7 ? 2 : 1;
+  state = {
+    players: names.map(n => ({ name: n, chips: 3, honor: false, eliminated: false })),
+    round: 1,
+    decks,
+    deck: [],
+    discard: [],
+    hands: [],
+    currentPlayer: 0,
+    knockedBy: -1,
+    lastChance: {},   // tracks who gets last turn after knock
+    phase: 'draw',    // draw | discard
+    drawnCard: null,
+    selectedCard: null,
+    roundOver: false
+  };
+
+  showHandoff(0, true);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DECK UTILS
+// ═══════════════════════════════════════════════════════
+function buildDeck(numDecks) {
+  const deck = [];
+  for (let d = 0; d < numDecks; d++) {
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ suit, rank });
+      }
+    }
+  }
+  return shuffle(deck);
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function cardValue(rank) {
+  if (['J','Q','K'].includes(rank)) return 10;
+  if (rank === 'A') return 11;
+  return parseInt(rank);
+}
+
+function handScore(cards) {
+  // Best score = highest sum of cards in a single suit
+  let best = 0;
+  for (const suit of SUITS) {
+    const inSuit = cards.filter(c => c.suit === suit);
+    const total = inSuit.reduce((s, c) => s + cardValue(c.rank), 0);
+    if (total > best) best = total;
+  }
+  return best;
+}
+
+// ═══════════════════════════════════════════════════════
+//  HANDOFF SCREEN
+// ═══════════════════════════════════════════════════════
+function showHandoff(playerIndex, isNewRound) {
+  const p = state.players[playerIndex];
+  showScreen('handoff-screen');
+
+  document.getElementById('handoff-name').textContent =
+    isNewRound && playerIndex === 0 ? `Round ${state.round}` : p.name;
+
+  if (isNewRound && playerIndex === 0) {
+    document.getElementById('handoff-msg').textContent =
+      `Pass the device to ${p.name} to see their hand.`;
+  } else {
+    document.getElementById('handoff-msg').textContent =
+      p.honor ? `You're On Your Honor — this is your last chance!` : `It's your turn, ${p.name}.`;
+  }
+
+  // Show chips
+  const chipDiv = document.getElementById('handoff-chips');
+  chipDiv.innerHTML = renderChipDots(p);
+
+  // Store who we're handing off to
+  state._handoffPlayer = playerIndex;
+  state._handoffNewRound = isNewRound;
+}
+
+function proceedFromHandoff() {
+  const playerIndex = state._handoffPlayer;
+  const isNewRound = state._handoffNewRound;
+
+  if (isNewRound && playerIndex === 0) {
+    // Deal round
+    dealRound();
+  } else {
+    showScreen('game-screen');
+    renderGame();
+  }
+}
+
+function dealRound() {
+  state.deck = buildDeck(state.decks);
+  state.hands = [];
+  state.discard = [];
+  state.knockedBy = -1;
+  state.lastChance = {};
+  state.phase = 'draw';
+  state.drawnCard = null;
+  state.selectedCard = null;
+  state.roundOver = false;
+
+  // Deal 3 cards to each non-eliminated player
+  const activePlayers = state.players.filter(p => !p.eliminated);
+  for (let i = 0; i < state.players.length; i++) {
+    state.hands.push(state.players[i].eliminated ? [] : [state.deck.pop(), state.deck.pop(), state.deck.pop()]);
+  }
+
+  // Flip first discard
+  state.discard.push(state.deck.pop());
+
+  // Find first active player
+  state.currentPlayer = state.players.findIndex(p => !p.eliminated);
+
+  // Check instant 31 for first player
+  checkInstant31AfterDeal();
+}
+
+function checkInstant31AfterDeal() {
+  // Check all players for instant 31
+  for (let i = 0; i < state.players.length; i++) {
+    if (state.players[i].eliminated) continue;
+    if (handScore(state.hands[i]) === 31) {
+      // Instant 31 - show their hand first
+      state.currentPlayer = i;
+      showScreen('game-screen');
+      renderGame();
+      setTimeout(() => {
+        showModal('31! 🎉', `${state.players[i].name} has 31! Everyone else loses a chip.`, [
+          { label: 'Continue', action: () => { hideModal(); resolveInstant31(i); } }
+        ]);
+      }, 500);
+      return;
+    }
+  }
+  showScreen('game-screen');
+  renderGame();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER GAME
+// ═══════════════════════════════════════════════════════
+function renderGame() {
+  const p = state.players[state.currentPlayer];
+  const hand = state.hands[state.currentPlayer];
+
+  document.getElementById('round-badge').textContent = `Round ${state.round}`;
+  document.getElementById('whose-turn').textContent = `${p.name}'s Turn`;
+
+  // Sub message
+  let sub = '';
+  if (state.knockedBy !== -1 && state.knockedBy !== state.currentPlayer) {
+    sub = `${state.players[state.knockedBy].name} knocked — last turn!`;
+  } else if (p.honor) {
+    sub = 'On Your Honor';
+  }
+  document.getElementById('turn-sub').textContent = sub;
+
+  // Players strip
+  renderPlayersStrip();
+
+  // Hand
+  renderHand(hand);
+
+  // Discard pile
+  renderDiscardPile();
+
+  // Deck
+  const deckEl = document.getElementById('deck-pile');
+  const deckCount = document.getElementById('deck-count');
+  deckCount.textContent = `${state.deck.length} left`;
+  if (state.deck.length === 0) deckEl.classList.add('empty');
+  else deckEl.classList.remove('empty');
+
+  // Buttons & instructions
+  updateButtons();
+}
+
+function renderPlayersStrip() {
+  const strip = document.getElementById('players-strip');
+  strip.innerHTML = '';
+  state.players.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'player-chip-card' + (i === state.currentPlayer ? ' current-player' : '') + (p.eliminated ? ' eliminated' : '');
+    div.innerHTML = `<div class="pname">${p.name}</div>
+      <div class="chips-display">${renderChipDots(p)}</div>`;
+    strip.appendChild(div);
+  });
+}
+
+function renderChipDots(p) {
+  if (p.eliminated) return '<span style="font-size:0.7rem;opacity:0.5">Out</span>';
+  let html = '';
+  const total = p.honor ? 0 : p.chips;
+  const max = 3;
+  for (let i = 0; i < max; i++) {
+    if (i < total) html += '<div class="chip red"></div>';
+    else if (p.honor && i === 0) html += '<div class="chip honor"></div>';
+    else html += '<div class="chip gone"></div>';
+  }
+  return html;
+}
+
+function renderHand(hand) {
+  const container = document.getElementById('hand-cards');
+  container.innerHTML = '';
+  hand.forEach((card, i) => {
+    const div = buildCardEl(card, i);
+    container.appendChild(div);
+  });
+  document.getElementById('hand-score').textContent = handScore(hand);
+}
+
+function buildCardEl(card, index) {
+  const div = document.createElement('div');
+  div.className = `card ${SUIT_SYMBOL[card.suit]}`;
+  if (index === state.selectedCard) div.classList.add('selected');
+  div.onclick = () => selectCard(index);
+  div.innerHTML = `
+    <div class="card-corner top">${card.rank}${card.suit}</div>
+    <div class="card-suit-center">${card.suit}</div>
+    <div class="card-corner bottom">${card.rank}${card.suit}</div>`;
+  return div;
+}
+
+function renderDiscardPile() {
+  const pile = document.getElementById('discard-pile');
+  if (state.discard.length === 0) {
+    pile.innerHTML = '<div style="width:70px;height:100px;border:2px dashed rgba(255,255,255,0.15);border-radius:8px;"></div>';
+    return;
+  }
+  const top = state.discard[state.discard.length - 1];
+  const div = buildCardEl(top, -1);
+  div.onclick = () => drawFromDiscard();
+  div.classList.remove('selected');
+  pile.innerHTML = '';
+  pile.appendChild(div);
+}
+
+function updateButtons() {
+  const phase = state.phase;
+  const hasSelected = state.selectedCard !== null;
+  const hasDrawn = state.drawnCard !== null;
+
+  document.getElementById('btn-draw-deck').disabled = phase !== 'draw' || state.deck.length === 0;
+  document.getElementById('btn-draw-discard').disabled = phase !== 'draw' || state.discard.length === 0;
+  document.getElementById('btn-discard').disabled = phase !== 'discard' || !hasSelected;
+  document.getElementById('btn-knock').disabled = phase !== 'draw';
+
+  let inst = '';
+  if (phase === 'draw') inst = 'Draw a card from the deck or discard pile — or Knock.';
+  else inst = 'Select a card from your hand to discard.';
+  document.getElementById('instruction-text').textContent = inst;
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAMEPLAY ACTIONS
+// ═══════════════════════════════════════════════════════
+function selectCard(index) {
+  if (state.phase !== 'discard') return;
+  state.selectedCard = (state.selectedCard === index) ? null : index;
+  renderHand(state.hands[state.currentPlayer]);
+  updateButtons();
+}
+
+function drawFromDeck() {
+  if (state.phase !== 'draw' || state.deck.length === 0) return;
+  if (state.deck.length === 0) {
+    // Reshuffle discard minus top
+    const top = state.discard.pop();
+    state.deck = shuffle([...state.discard]);
+    state.discard = [top];
+    showToast('Deck reshuffled from discard');
+  }
+  const card = state.deck.pop();
+  state.hands[state.currentPlayer].push(card);
+  state.drawnCard = state.hands[state.currentPlayer].length - 1;
+  state.selectedCard = state.drawnCard; // auto-select newly drawn card
+  state.phase = 'discard';
+  renderGame();
+
+  // Check for 31 after draw
+  if (handScore(state.hands[state.currentPlayer]) === 31) {
+    setTimeout(() => handle31(), 200);
+  }
+}
+
+function drawFromDiscard() {
+  if (state.phase !== 'draw' || state.discard.length === 0) return;
+  const card = state.discard.pop();
+  state.hands[state.currentPlayer].push(card);
+  state.drawnCard = state.hands[state.currentPlayer].length - 1;
+  state.selectedCard = state.drawnCard;
+  state.phase = 'discard';
+  renderGame();
+
+  if (handScore(state.hands[state.currentPlayer]) === 31) {
+    setTimeout(() => handle31(), 200);
+  }
+}
+
+function discardSelected() {
+  if (state.phase !== 'discard' || state.selectedCard === null) return;
+  const hand = state.hands[state.currentPlayer];
+  const discarded = hand.splice(state.selectedCard, 1)[0];
+  state.discard.push(discarded);
+  state.selectedCard = null;
+  state.drawnCard = null;
+  state.phase = 'draw';
+  endTurn();
+}
+
+function knock() {
+  if (state.phase !== 'draw') return;
+  if (state.knockedBy !== -1) return; // already knocked
+
+  state.knockedBy = state.currentPlayer;
+  showToast(`${state.players[state.currentPlayer].name} knocked!`);
+  endTurn();
+}
+
+function handle31() {
+  const p = state.players[state.currentPlayer];
+  showModal('31! 🎉', `${p.name} has 31! Everyone else loses a chip.`, [
+    { label: 'Continue', action: () => { hideModal(); resolveInstant31(state.currentPlayer); } }
+  ]);
+}
+
+function endTurn() {
+  // If someone knocked, check if everyone else got their last turn
+  if (state.knockedBy !== -1) {
+    // Mark that knocker's turn is done; others need last turn
+    // Find next player who hasn't had their last chance
+    const next = nextActivePlayer(state.currentPlayer);
+
+    if (next === state.knockedBy) {
+      // Everyone has had their last turn — end round
+      endRound();
+      return;
+    }
+
+    state.currentPlayer = next;
+    showHandoffForTurn(next);
+    return;
+  }
+
+  // Normal turn advancement
+  state.currentPlayer = nextActivePlayer(state.currentPlayer);
+  showHandoffForTurn(state.currentPlayer);
+}
+
+function showHandoffForTurn(playerIndex) {
+  const p = state.players[playerIndex];
+  showScreen('handoff-screen');
+  document.getElementById('handoff-name').textContent = p.name;
+  document.getElementById('handoff-msg').textContent =
+    state.knockedBy !== -1
+      ? `${state.players[state.knockedBy].name} knocked! This is your last turn, ${p.name}.`
+      : (p.honor ? `You're On Your Honor — this is your last chance!` : `It's your turn, ${p.name}.`);
+  document.getElementById('handoff-chips').innerHTML = renderChipDots(p);
+  state._handoffPlayer = playerIndex;
+  state._handoffNewRound = false;
+}
+
+function nextActivePlayer(from) {
+  const n = state.players.length;
+  let next = (from + 1) % n;
+  while (state.players[next].eliminated) {
+    next = (next + 1) % n;
+    if (next === from) break;
+  }
+  return next;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ROUND END
+// ═══════════════════════════════════════════════════════
+function resolveInstant31(winnerIndex) {
+  // Everyone except winner loses a chip
+  state.players.forEach((p, i) => {
+    if (i !== winnerIndex && !p.eliminated) loseChip(p);
+  });
+  checkEliminations(() => showRoundEnd(winnerIndex, true));
+}
+
+function endRound() {
+  // Find winner(s)
+  const scores = state.players.map((p, i) => ({
+    index: i,
+    player: p,
+    score: p.eliminated ? -1 : handScore(state.hands[i])
+  })).filter(x => !x.player.eliminated);
+
+  const maxScore = Math.max(...scores.map(s => s.score));
+  const winners = scores.filter(s => s.score === maxScore);
+
+  // Tie-break: if exactly 2 players left and tied — play another hand (handled in showRoundEnd)
+  const activePlayers = state.players.filter(p => !p.eliminated);
+  if (winners.length === activePlayers.length && activePlayers.length === 2) {
+    // All tied with 2 left — replay
+    showModal('Tie!', `${winners.map(w=>w.player.name).join(' & ')} are tied! Play another hand.`, [
+      { label: 'Replay Hand', action: () => { hideModal(); dealRound(); showScreen('game-screen'); renderGame(); } }
+    ]);
+    return;
+  }
+
+  // Losers (non-winners among active) lose a chip
+  scores.forEach(s => {
+    if (s.score < maxScore) loseChip(s.player);
+  });
+
+  checkEliminations(() => showRoundEnd(-1, false, winners, scores));
+}
+
+function loseChip(player) {
+  if (player.eliminated) return;
+  if (player.honor) {
+    player.honor = false;
+    player.eliminated = true;
+  } else if (player.chips > 0) {
+    player.chips--;
+    if (player.chips === 0) {
+      player.honor = true; // gets On Your Honor
+    }
+  }
+}
+
+function checkEliminations(callback) {
+  const honorPlayers = state.players.filter(p => p.honor && !p.eliminated);
+  if (honorPlayers.length > 0) {
+    // Just notify, don't block
+  }
+  callback();
+}
+
+function showRoundEnd(instant31Winner, isInstant, winners, scores) {
+  showScreen('roundend-screen');
+
+  if (isInstant) {
+    document.getElementById('roundend-title').textContent = '31! Instant Win!';
+  } else {
+    const winNames = winners.map(w => w.player.name).join(' & ');
+    document.getElementById('roundend-title').textContent = `${winNames} wins!`;
+  }
+
+  const tbody = document.getElementById('results-body');
+  tbody.innerHTML = '';
+
+  state.players.forEach((p, i) => {
+    if (p.eliminated && !isInstant) return;
+    const score = p.eliminated ? '—' : handScore(state.hands[i]);
+    const isWinner = isInstant ? i === instant31Winner :
+      (winners && winners.some(w => w.index === i));
+    const tr = document.createElement('tr');
+    tr.className = isWinner ? 'winner' : (p.eliminated ? '' : 'lost-chip');
+
+    let chipStr = '';
+    if (p.eliminated && !p.honor) chipStr = '<span style="color:#e74c3c">Eliminated</span>';
+    else if (p.honor) chipStr = '<span style="color:var(--gold)">On Your Honor</span>';
+    else chipStr = `${p.chips} chip${p.chips!==1?'s':''}`;
+
+    tr.innerHTML = `<td>${p.name}</td><td>${score}</td><td>${chipStr}</td>
+      <td class="chip-change ${isWinner?'safe':'lost'}">${isWinner ? '✓' : (p.eliminated?'':'−1')}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Check game over
+  const active = state.players.filter(p => !p.eliminated);
+  if (active.length <= 1) {
+    document.getElementById('next-round-btn').textContent = 'See Winner';
+    document.getElementById('next-round-btn').onclick = showGameOver;
+  } else {
+    document.getElementById('next-round-btn').textContent = 'Next Round';
+    document.getElementById('next-round-btn').onclick = nextRound;
+  }
+}
+
+function nextRound() {
+  state.round++;
+  // Reset phase
+  state.phase = 'draw';
+  state.drawnCard = null;
+  state.selectedCard = null;
+  showHandoff(0, true);
+}
+
+function showGameOver() {
+  showScreen('gameover-screen');
+  const winner = state.players.find(p => !p.eliminated);
+  if (winner) {
+    document.getElementById('winner-text').textContent = `🏆 ${winner.name} wins!`;
+    document.getElementById('gameover-sub').textContent = `Congratulations! Game over after ${state.round} rounds.`;
+  } else {
+    document.getElementById('winner-text').textContent = 'Everyone\'s out!';
+    document.getElementById('gameover-sub').textContent = 'What a game!';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILITY
+// ═══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showModal(title, msg, buttons) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-msg').textContent = msg;
+  const btns = document.getElementById('modal-btns');
+  btns.innerHTML = '';
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-primary';
+    btn.textContent = b.label;
+    btn.onclick = b.action;
+    btns.appendChild(btn);
+  });
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function hideModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Init
+updateDeckInfo();
+</script>
+</body>
+</html>
