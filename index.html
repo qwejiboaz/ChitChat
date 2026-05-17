@@ -532,6 +532,11 @@ function onMessage(msg) {
       if (!me.isHost) break;
       // Validate it's actually that player's turn
       if (!G.players || G.players[G.currentIdx].name !== msg.player) break;
+      // Validate phase matches expected action
+      if ((msg.action === 'draw-deck' || msg.action === 'draw-discard' || msg.action === 'knock') && G.phase !== 'draw') break;
+      if (msg.action === 'discard' && G.phase !== 'discard') break;
+      // Validate hand size — can only discard if player has 4 cards
+      if (msg.action === 'discard' && G.hands[msg.player] && G.hands[msg.player].length !== 4) break;
       switch(msg.action) {
         case 'draw-deck':    hostDrawDeck(msg.player); break;
         case 'draw-discard': hostDrawDiscard(msg.player); break;
@@ -668,6 +673,9 @@ function broadcastPub() { broadcast({ type:'game-state', pub:publicG() }); }
 
 // ── HOST: ACTIONS ────────────────────────────────────────
 function hostDrawDeck(playerName) {
+  if (G.phase !== 'draw') return;
+  // Validate hand size — should be exactly 3 before drawing
+  if (G.hands[playerName] && G.hands[playerName].length !== 3) return;
   if (G.deck.length === 0) {
     const top = G.discard.pop();
     G.deck = shuffle([...G.discard]);
@@ -675,11 +683,12 @@ function hostDrawDeck(playerName) {
     showToast('Deck reshuffled');
   }
   const card = G.deck.pop();
+  if (!G.hands[playerName]) G.hands[playerName] = [];
   G.hands[playerName].push(card);
   G.phase = 'discard';
   G.deckCount = G.deck.length;
-  broadcast({ type:'deal-hand', playerName, hand:G.hands[playerName] });
-  if (playerName === me.name) myHand = G.hands[playerName];
+  broadcast({ type:'deal-hand', playerName, hand: [...G.hands[playerName]] });
+  if (playerName === me.name) myHand = [...G.hands[playerName]];
   broadcastPub(); renderGame(); updateOverlay();
   if (handScore(G.hands[playerName]) === 31) {
     setTimeout(() => showModal('31! 🎉', `${playerName} has 31! Everyone else loses a chip.`, [
@@ -689,12 +698,16 @@ function hostDrawDeck(playerName) {
 }
 
 function hostDrawDiscard(playerName) {
+  if (G.phase !== 'draw') return;
+  // Validate hand size — should be exactly 3 before drawing
+  if (G.hands[playerName] && G.hands[playerName].length !== 3) return;
   if (!G.discard.length) return;
   const card = G.discard.pop();
+  if (!G.hands[playerName]) G.hands[playerName] = [];
   G.hands[playerName].push(card);
   G.phase = 'discard';
-  broadcast({ type:'deal-hand', playerName, hand:G.hands[playerName] });
-  if (playerName === me.name) myHand = G.hands[playerName];
+  broadcast({ type:'deal-hand', playerName, hand: [...G.hands[playerName]] });
+  if (playerName === me.name) myHand = [...G.hands[playerName]];
   broadcastPub(); renderGame(); updateOverlay();
   if (handScore(G.hands[playerName]) === 31) {
     setTimeout(() => showModal('31! 🎉', `${playerName} has 31! Everyone else loses a chip.`, [
@@ -705,11 +718,18 @@ function hostDrawDiscard(playerName) {
 
 function hostDiscard(playerName, idx) {
   const hand = G.hands[playerName];
-  if (!hand || idx >= hand.length) return;
-  G.discard.push(hand.splice(idx, 1)[0]);
+  if (!hand) return;
+  // Validate index — hand should have 4 cards at this point
+  if (idx < 0 || idx >= hand.length) {
+    console.warn('Invalid discard index', idx, 'hand length', hand.length);
+    return;
+  }
+  const discarded = hand.splice(idx, 1)[0];
+  G.discard.push(discarded);
   G.phase = 'draw';
-  broadcast({ type:'deal-hand', playerName, hand:G.hands[playerName] });
-  if (playerName === me.name) myHand = G.hands[playerName];
+  // Send updated 3-card hand back to the player
+  broadcast({ type:'deal-hand', playerName, hand: [...G.hands[playerName]] });
+  if (playerName === me.name) myHand = [...G.hands[playerName]];
   hostAdvance();
 }
 
@@ -934,13 +954,60 @@ function updateButtons() {
 
 function updateOverlay() {
   const ov = document.getElementById('waiting-overlay');
-  if (isMyTurn()) { ov.classList.remove('show'); return; }
+  if (isMyTurn()) {
+    ov.classList.remove('show');
+    clearInterval(window._quipTimer);
+    return;
+  }
   ov.classList.add('show');
   const cp = G.players ? G.players[G.currentIdx] : null;
   document.getElementById('waiting-name').textContent = cp ? `${cp.name}'s Turn` : 'Waiting...';
-  document.getElementById('waiting-msg-text').textContent = G.knockedBy
-    ? `${G.knockedBy} knocked — last turns in progress`
-    : 'Waiting for their move...';
+
+  const setQuip = () => {
+    document.getElementById('waiting-msg-text').textContent = G.knockedBy
+      ? `${G.knockedBy} knocked — say your prayers`
+      : getWaitingQuip(cp ? cp.name : 'They');
+  };
+
+  setQuip();
+  clearInterval(window._quipTimer);
+  window._quipTimer = setInterval(setQuip, 4000);
+}
+
+const QUIPS = [
+  n => `${n} is thinking. This could take a while.`,
+  n => `${n} is staring at their cards like it's a Magic Eye poster.`,
+  n => `${n} is playing. Try not to fall asleep.`,
+  n => `Still waiting on ${n}. Anyone want a snack?`,
+  n => `${n} has the attention span of a golden retriever right now.`,
+  n => `${n} is "strategizing." Sure they are.`,
+  n => `Why did the card player bring a ladder? To reach the high scores. 🥁`,
+  n => `What do you call a card game in a cornfield? Snap. 🌽`,
+  n => `${n} is consulting their spirit animal. It's a sloth.`,
+  n => `I told my wife she was drawing her eyebrows too high. She looked surprised. 🥁`,
+  n => `${n} is playing. You could reorganize your sock drawer in this time.`,
+  n => `Why can't you trust an atom? Because they make up everything. 🥁`,
+  n => `${n} is thinking so hard you can smell it.`,
+  n => `${n} picked up a card. Revolutionary.`,
+  n => `Did you hear about the claustrophobic astronaut? He just needed a little space. 🥁`,
+  n => `${n} is taking their sweet time. Real sweet. Like, geological era sweet.`,
+  n => `I'm reading a book about anti-gravity. It's impossible to put down. 🥁`,
+  n => `${n} is either a genius or completely lost. Probably lost.`,
+  n => `Why did the scarecrow win an award? Because he was outstanding in his field. 🥁`,
+  n => `${n} looked at their hand and made a face. We all saw it.`,
+  n => `${n} is about to make a move. Or not. Who knows at this point.`,
+  n => `What do you call cheese that isn't yours? Nacho cheese. 🥁`,
+  n => `${n} has been staring at that discard pile for 3 business days.`,
+  n => `I only know 25 letters of the alphabet. I don't know y. 🥁`,
+  n => `${n} is playing like they have all the time in the world. They don't.`,
+];
+
+let lastQuipIdx = -1;
+function getWaitingQuip(name) {
+  let idx;
+  do { idx = Math.floor(Math.random() * QUIPS.length); } while (idx === lastQuipIdx);
+  lastQuipIdx = idx;
+  return QUIPS[idx](name);
 }
 
 // ── ROUND END ────────────────────────────────────────────
