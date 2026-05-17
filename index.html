@@ -499,12 +499,15 @@ function onMessage(msg) {
       break;
 
     case 'game-started':
-      G = msg.G;
-      myHand = [];
-      selectedCard = null;
-      showScreen('game-screen');
-      renderGame();
-      updateOverlay();
+      // Only non-host players update state from this message
+      if (!me.isHost) {
+        G = msg.G;
+        myHand = [];
+        selectedCard = null;
+        showScreen('game-screen');
+        renderGame();
+        updateOverlay();
+      }
       break;
 
     case 'deal-hand':
@@ -516,9 +519,12 @@ function onMessage(msg) {
       break;
 
     case 'game-state':
-      Object.assign(G, msg.pub);
-      renderGame();
-      updateOverlay();
+      // Host already has full state including hands — don't overwrite with public state
+      if (!me.isHost) {
+        Object.assign(G, msg.pub);
+        renderGame();
+        updateOverlay();
+      }
       break;
 
     case 'action':
@@ -535,23 +541,24 @@ function onMessage(msg) {
       break;
 
     case 'round-ended':
-      Object.assign(G, msg.pub);
+      if (!me.isHost) Object.assign(G, msg.pub);
       showRoundEnd(msg.winners, msg.scores, msg.instant31);
       break;
 
     case 'game-over':
-      Object.assign(G, msg.pub);
+      if (!me.isHost) Object.assign(G, msg.pub);
       showGameOver();
       break;
 
     case 'next-round':
-      Object.assign(G, msg.pub);
-      myHand = []; selectedCard = null;
-      showToast('New round!');
-      showScreen('game-screen');
-      renderGame();
-      updateOverlay();
-      if (me.isHost) setTimeout(hostDeal, 500);
+      if (!me.isHost) {
+        Object.assign(G, msg.pub);
+        myHand = []; selectedCard = null;
+        showToast('New round!');
+        showScreen('game-screen');
+        renderGame();
+        updateOverlay();
+      }
       break;
   }
 }
