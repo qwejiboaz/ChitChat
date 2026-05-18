@@ -586,11 +586,14 @@ function onMessage(msg) {
       if (!me.isHost) {
         Object.assign(G, msg.pub);
         renderGame();
-        updateOverlay();
+        // Small delay ensures G is fully updated before checking isMyTurn
+        setTimeout(updateOverlay, 50);
       }
       break;
 
     case 'ping': break; // heartbeat, ignore
+
+    case 'action':
       // Only host processes actions
       if (!me.isHost) break;
       // Validate it's actually that player's turn
