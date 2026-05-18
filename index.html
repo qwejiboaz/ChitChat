@@ -184,17 +184,13 @@
 <div id="home-screen" class="screen active">
   <div class="title-block">
     <h1>ChitChat</h1>
-    <p>Family Card Game · Based on 31</p>
-    <button class="instructions-link" onclick="showInstructions()">How to Play</button>
+    <p>Filoteo Family Card Game · Based on 31</p>
+    <button class="instructions-link" onclick="showInstructions()"><strong>How to Play</strong></button>
   </div>
 
   <div class="home-card">
     <h3>Your Name</h3>
     <input class="input-field" id="player-name-input" placeholder="Enter your name" maxlength="20">
-
-    <hr class="divider">
-    <h3>Create a Game</h3>
-    <button class="btn-primary" onclick="createGame()">Create Game</button>
 
     <hr class="divider">
     <h3>Join a Game</h3>
@@ -204,8 +200,12 @@
     </div>
 
     <hr class="divider">
-    <h3>Table Theme</h3>
-    <div class="theme-swatches">
+    <h3>Create a Game</h3>
+    <button class="btn-primary" onclick="createGame()">Create Game</button>
+
+    <hr class="divider">
+    <h3 style="text-align:center;">Table Theme</h3>
+    <div class="theme-swatches" style="justify-content:center;">
       <div class="theme-swatch swatch-classic active" onclick="setTheme('classic')" title="Classic"></div>
       <div class="theme-swatch swatch-navy" onclick="setTheme('navy')" title="Midnight"></div>
       <div class="theme-swatch swatch-burgundy" onclick="setTheme('burgundy')" title="Burgundy"></div>
@@ -451,6 +451,8 @@ async function connectWS() {
       } else {
         setTimeout(() => broadcast({ type:'request-state' }), 600);
       }
+      // Start heartbeat
+      startHeartbeat();
     };
 
     ws.onmessage = evt => {
@@ -461,9 +463,70 @@ async function connectWS() {
       } catch(e) {}
     };
 
-    ws.onclose = () => showToast('Disconnected');
-    ws.onerror = () => showToast('Connection error — check your game code');
+    ws.onclose = () => {
+      stopHeartbeat();
+      showToast('Connection lost — reconnecting...');
+      // Auto-reconnect after 2 seconds
+      setTimeout(() => reconnect(), 2000);
+    };
+
+    ws.onerror = () => {
+      showToast('Connection error — check your game code');
+    };
+
   } catch(e) { showToast('Could not connect — try again'); }
+}
+
+async function reconnect() {
+  try {
+    const r = await fetch(`${API_BASE}/negotiate?playerName=${encodeURIComponent(me.name)}&gameCode=${me.gameCode}`);
+    const d = await r.json();
+    ws = new WebSocket(d.url, 'json.webpubsub.azure.v1');
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type:'joinGroup', group:me.gameCode }));
+      showToast('Reconnected!');
+      // Re-announce and request current state
+      broadcast({ type:'player-joined', name:me.name, isHost:me.isHost });
+      setTimeout(() => broadcast({ type:'request-state' }), 500);
+      startHeartbeat();
+    };
+
+    ws.onmessage = evt => {
+      try {
+        const env = JSON.parse(evt.data);
+        const msg = env.data ? (typeof env.data === 'string' ? JSON.parse(env.data) : env.data) : env;
+        onMessage(msg);
+      } catch(e) {}
+    };
+
+    ws.onclose = () => {
+      stopHeartbeat();
+      showToast('Still disconnected — retrying...');
+      setTimeout(() => reconnect(), 3000);
+    };
+
+    ws.onerror = () => {};
+
+  } catch(e) {
+    showToast('Reconnect failed — retrying...');
+    setTimeout(() => reconnect(), 3000);
+  }
+}
+
+let _heartbeat;
+function startHeartbeat() {
+  stopHeartbeat();
+  _heartbeat = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      // Send a ping to keep connection alive
+      try { ws.send(JSON.stringify({ type:'sendToGroup', group:me.gameCode, dataType:'json', data:{ type:'ping', from:me.name } })); } catch(e) {}
+    }
+  }, 25000); // every 25 seconds
+}
+
+function stopHeartbeat() {
+  clearInterval(_heartbeat);
 }
 
 function broadcast(msg) {
@@ -527,7 +590,7 @@ function onMessage(msg) {
       }
       break;
 
-    case 'action':
+    case 'ping': break; // heartbeat, ignore
       // Only host processes actions
       if (!me.isHost) break;
       // Validate it's actually that player's turn
