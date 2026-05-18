@@ -215,7 +215,18 @@
   </div>
 </div>
 
-<!-- LOBBY -->
+<!-- REJOIN -->
+<div id="rejoin-screen" class="screen">
+  <div class="title-block">
+    <h1>ChitChat</h1>
+    <p>You were in a game!</p>
+  </div>
+  <div class="home-card" style="text-align:center;gap:16px;">
+    <p id="rejoin-msg" style="opacity:0.8;font-size:1.05rem;line-height:1.6;"></p>
+    <button class="btn-primary" onclick="rejoinGame()">Rejoin Game</button>
+    <button class="btn-secondary" onclick="abandonGame()">Start Fresh</button>
+  </div>
+</div>
 <div id="lobby-screen" class="screen">
   <h2 style="color:var(--gold)">ChitChat</h2>
   <div class="lobby-code-box">
@@ -314,7 +325,7 @@
     <thead><tr><th>Place</th><th>Player</th><th>Chips</th><th>Status</th></tr></thead>
     <tbody id="gameover-body"></tbody>
   </table>
-  <button class="btn-primary" onclick="location.reload()" style="margin-top:20px;max-width:280px;">Play Again</button>
+  <button class="btn-primary" onclick="localStorage.removeItem('cc_session');location.reload()" style="margin-top:20px;max-width:280px;">Play Again</button>
 </div>
 
 <!-- MODALS -->
@@ -436,6 +447,8 @@ async function joinGame() {
 // ── WEBSOCKET ────────────────────────────────────────────
 async function connectWS() {
   showToast('Connecting...');
+  // Save session so we can rejoin after back/refresh
+  localStorage.setItem('cc_session', JSON.stringify({ name: me.name, gameCode: me.gameCode, isHost: me.isHost }));
   try {
     const r = await fetch(`${API_BASE}/negotiate?playerName=${encodeURIComponent(me.name)}&gameCode=${me.gameCode}`);
     const d = await r.json();
@@ -486,9 +499,9 @@ async function reconnect() {
     ws.onopen = () => {
       ws.send(JSON.stringify({ type:'joinGroup', group:me.gameCode }));
       showToast('Reconnected!');
-      // Re-announce and request current state
+      // Re-announce and request current state with our name so host can resend our hand
       broadcast({ type:'player-joined', name:me.name, isHost:me.isHost });
-      setTimeout(() => broadcast({ type:'request-state' }), 500);
+      setTimeout(() => broadcast({ type:'request-state', playerName:me.name }), 500);
       startHeartbeat();
     };
 
@@ -556,8 +569,22 @@ function onMessage(msg) {
 
     case 'request-state':
       if (me.isHost) {
-        if (G.gameStarted) broadcast({ type:'game-state', pub:publicG() });
-        else broadcast({ type:'lobby-state', players:G.lobbyPlayers });
+        if (G.gameStarted) {
+          broadcast({ type:'game-state', pub:publicG() });
+          // Resend each player their hand in case they rejoined
+          if (msg.playerName && G.hands && G.hands[msg.playerName]) {
+            broadcast({ type:'deal-hand', playerName:msg.playerName, hand:[...G.hands[msg.playerName]] });
+          } else if (G.hands) {
+            // Resend all hands (covers case where we don't know who's asking)
+            G.players.forEach(p => {
+              if (!p.eliminated && G.hands[p.name]) {
+                broadcast({ type:'deal-hand', playerName:p.name, hand:[...G.hands[p.name]] });
+              }
+            });
+          }
+        } else {
+          broadcast({ type:'lobby-state', players:G.lobbyPlayers });
+        }
       }
       break;
 
@@ -663,7 +690,11 @@ function shareViaSMS() {
   window.location.href = `sms:?&body=${encodeURIComponent(body)}`;
 }
 
-function leaveGame() { if (ws) ws.close(); location.reload(); }
+function leaveGame() {
+  localStorage.removeItem('cc_session');
+  if (ws) ws.close();
+  location.reload();
+}
 
 // ── HOST: START ──────────────────────────────────────────
 function hostStartGame() {
@@ -1041,31 +1072,97 @@ function updateOverlay() {
 }
 
 const QUIPS = [
+  // Light roasts
   n => `${n} is thinking. This could take a while.`,
   n => `${n} is staring at their cards like it's a Magic Eye poster.`,
-  n => `${n} is playing. Try not to fall asleep.`,
   n => `Still waiting on ${n}. Anyone want a snack?`,
   n => `${n} has the attention span of a golden retriever right now.`,
   n => `${n} is "strategizing." Sure they are.`,
-  n => `Why did the card player bring a ladder? To reach the high scores. 🥁`,
-  n => `What do you call a card game in a cornfield? Snap. 🌽`,
   n => `${n} is consulting their spirit animal. It's a sloth.`,
-  n => `I told my wife she was drawing her eyebrows too high. She looked surprised. 🥁`,
-  n => `${n} is playing. You could reorganize your sock drawer in this time.`,
-  n => `Why can't you trust an atom? Because they make up everything. 🥁`,
   n => `${n} is thinking so hard you can smell it.`,
   n => `${n} picked up a card. Revolutionary.`,
-  n => `Did you hear about the claustrophobic astronaut? He just needed a little space. 🥁`,
   n => `${n} is taking their sweet time. Real sweet. Like, geological era sweet.`,
-  n => `I'm reading a book about anti-gravity. It's impossible to put down. 🥁`,
   n => `${n} is either a genius or completely lost. Probably lost.`,
-  n => `Why did the scarecrow win an award? Because he was outstanding in his field. 🥁`,
   n => `${n} looked at their hand and made a face. We all saw it.`,
-  n => `${n} is about to make a move. Or not. Who knows at this point.`,
-  n => `What do you call cheese that isn't yours? Nacho cheese. 🥁`,
   n => `${n} has been staring at that discard pile for 3 business days.`,
-  n => `I only know 25 letters of the alphabet. I don't know y. 🥁`,
   n => `${n} is playing like they have all the time in the world. They don't.`,
+  n => `${n} is about to make a brilliant move. Or a terrible one. Could go either way.`,
+  n => `${n} is up. The rest of us age in real time.`,
+  n => `${n} is playing cards, not defusing a bomb. Pick something.`,
+  n => `${n} blinked. That's the most action we've seen in a while.`,
+  n => `${n} is really milking this. Respect, honestly.`,
+  // Getting rowdier
+  n => `${n} plays cards the same way they drive. Dangerously slow.`,
+  n => `${n} is taking so long their cards are getting dusty.`,
+  n => `Someone check on ${n}. They might have fallen asleep.`,
+  n => `${n} is up there cooking. It smells like garbage.`,
+  n => `${n} has made worse decisions than this. Allegedly.`,
+  n => `${n} looks confused. That tracks.`,
+  n => `${n} is thinking. First time for everything.`,
+  n => `${n} is playing with the confidence of someone who has no idea what they're doing.`,
+  n => `${n} is really committed to making everyone suffer through this turn.`,
+  n => `${n} taking this long is honestly a personality trait at this point.`,
+  n => `${n}'s hand must be spectacular. Or catastrophic. No in between.`,
+  n => `${n} is up. Go get a drink. You have time.`,
+  n => `${n} is playing cards like they're filing their taxes.`,
+  n => `${n} is the human equivalent of a loading screen.`,
+  n => `${n}'s strategy appears to be "wait until everyone else gives up."`,
+  n => `${n} has been thinking longer than it took to build the pyramids.`,
+  // Nasty
+  n => `${n} plays like they learned cards from a golden retriever.`,
+  n => `${n} is up. Lower your expectations accordingly.`,
+  n => `${n} has the card skills of a drunk raccoon.`,
+  n => `${n}'s poker face is somehow worse than their actual card playing.`,
+  n => `${n} is absolutely cooked and doesn't know it yet.`,
+  n => `${n} is trash at this game and we love them anyway. Mostly.`,
+  n => `${n} is thinking so hard they might pull something.`,
+  n => `${n} is playing cards. Generously speaking.`,
+  n => `${n} looks like they're trying to do math. This is bad.`,
+  n => `${n} is up. Hide your chips.`,
+  n => `${n}'s hand is probably garbage. But hey, what do we know.`,
+  n => `${n} is the reason this game has no time limit. Until now.`,
+  n => `${n} just remembered they don't know how to play. Good luck everyone.`,
+  n => `${n} is stalling. We all see it. They know we see it.`,
+  n => `${n} is about to do something stupid. We can all feel it.`,
+  n => `${n} couldn't find a good card with a GPS and a flashlight.`,
+  n => `${n} is playing like they owe everyone money. Oh wait.`,
+  n => `${n} is taking so long we aged out of the free tier.`,
+  n => `${n}'s hand smells like a loss. Just a vibe.`,
+  n => `${n} is the human embodiment of a bad beat.`,
+  n => `${n} is definitely bluffing. About having a strategy.`,
+  n => `${n} has been thinking this long before and it never ends well.`,
+  n => `${n} is pondering. The chips are judging.`,
+  n => `${n} is doing their best. Bless their heart.`,
+  n => `${n} and good cards have a complicated relationship.`,
+  n => `${n} is staring into the void. The void is staring back.`,
+  n => `${n} plays with the urgency of someone who doesn't want to win.`,
+  n => `${n} just made a face that said "I am absolutely cooked."`,
+  n => `${n} is up. Statistically, this will not go well.`,
+  // Dad jokes
+  n => `Why did the card player bring a ladder? To reach the high scores. 🥁`,
+  n => `I told my wife she was drawing her eyebrows too high. She looked surprised. 🥁`,
+  n => `Why can't you trust an atom? Because they make up everything. 🥁`,
+  n => `Did you hear about the claustrophobic astronaut? He just needed a little space. 🥁`,
+  n => `I'm reading a book about anti-gravity. It's impossible to put down. 🥁`,
+  n => `Why did the scarecrow win an award? Outstanding in his field. 🥁`,
+  n => `What do you call cheese that isn't yours? Nacho cheese. 🥁`,
+  n => `I only know 25 letters of the alphabet. I don't know y. 🥁`,
+  n => `I used to hate facial hair but then it grew on me. 🥁`,
+  n => `What do you call a fish without eyes? A fsh. 🥁`,
+  n => `I'm on a seafood diet. I see food and I eat it. 🥁`,
+  n => `Why do cows wear bells? Because their horns don't work. 🥁`,
+  n => `What's brown and sticky? A stick. 🥁`,
+  n => `I asked my dog what two minus two is. He said nothing. 🥁`,
+  n => `Why did the math book look so sad? Too many problems. 🥁`,
+  n => `What do you call a sleeping dinosaur? A dino-snore. 🥁`,
+  n => `I would tell you a construction joke but I'm still working on it. 🥁`,
+  n => `What do you call someone with no body and no nose? Nobody knows. 🥁`,
+  n => `Why don't scientists trust atoms? They make up everything. 🥁`,
+  n => `I told a joke about a broken pencil. It was pointless. 🥁`,
+  n => `What do you call a fake noodle? An impasta. 🥁`,
+  n => `Why did the bicycle fall over? It was two tired. 🥁`,
+  n => `I don't trust stairs. They're always up to something. 🥁`,
+  n => `What do you call an alligator in a vest? An investigator. 🥁`,
 ];
 
 let lastQuipIdx = -1;
@@ -1152,7 +1249,51 @@ function handScore(cards) {
   return best;
 }
 
-// ── MODAL / TOAST ────────────────────────────────────────
+// ── REJOIN / SESSION ─────────────────────────────────────
+function checkForSession() {
+  try {
+    const saved = localStorage.getItem('cc_session');
+    if (!saved) return;
+    const session = JSON.parse(saved);
+    if (!session.name || !session.gameCode) return;
+    // Show rejoin screen
+    document.getElementById('rejoin-msg').textContent =
+      `${session.name} · Game ${session.gameCode} · ${session.isHost ? 'Host' : 'Player'}`;
+    showScreen('rejoin-screen');
+    // Store session for rejoin
+    window._savedSession = session;
+  } catch(e) {
+    localStorage.removeItem('cc_session');
+  }
+}
+
+async function rejoinGame() {
+  const session = window._savedSession;
+  if (!session) { showScreen('home-screen'); return; }
+  me = { name: session.name, gameCode: session.gameCode, isHost: session.isHost };
+  // Non-host rejoins — host may have moved on, we request state
+  me.isHost = false; // safe default — don't take over as host on rejoin
+  await connectWS();
+  // After connecting, show game screen if game was in progress
+  setTimeout(() => {
+    if (G.gameStarted) {
+      showScreen('game-screen');
+      renderGame();
+      updateOverlay();
+    }
+  }, 1500);
+}
+
+function abandonGame() {
+  localStorage.removeItem('cc_session');
+  window._savedSession = null;
+  showScreen('home-screen');
+}
+
+// Check for saved session on load
+window.addEventListener('load', () => {
+  checkForSession();
+});
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
