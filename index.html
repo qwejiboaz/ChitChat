@@ -181,6 +181,60 @@
   .instructions-section li { margin-bottom:5px;opacity:0.85;font-size:0.95rem;line-height:1.5; }
 
   #toast { position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(0,0,0,0.85);color:var(--cream);padding:9px 18px;border-radius:30px;font-size:0.88rem;opacity:0;transition:opacity 0.3s,transform 0.3s;pointer-events:none;z-index:200;white-space:nowrap; }
+  /* ── CONTACTS ── */
+  #contacts-screen { gap:16px; }
+  #contacts-screen h2 { color:var(--gold); font-size:1.8rem; }
+
+  .contacts-list { width:100%; max-width:440px; }
+  .contact-row {
+    display:flex; align-items:center; gap:10px;
+    padding:11px 14px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; margin-bottom:8px;
+  }
+  .contact-row .contact-info { flex:1; }
+  .contact-row .contact-name { font-size:1rem; font-weight:600; }
+  .contact-row .contact-phone { font-size:0.82rem; opacity:0.55; margin-top:1px; }
+  .contact-row .contact-actions { display:flex; gap:6px; }
+  .btn-icon-sm {
+    background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+    border-radius:7px; color:var(--cream); width:34px; height:34px;
+    cursor:pointer; font-size:0.9rem; display:flex; align-items:center; justify-content:center;
+  }
+  .btn-icon-sm:hover { background:rgba(255,255,255,0.18); }
+  .btn-icon-sm.danger:hover { background:rgba(231,76,60,0.3); border-color:#e74c3c; }
+
+  .add-contact-form {
+    width:100%; max-width:440px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:10px;
+  }
+  .add-contact-form h3 { color:var(--gold); font-size:1rem; margin-bottom:2px; }
+  .form-row { display:flex; gap:8px; }
+  .form-row .input-field { flex:1; padding:10px 14px; font-size:0.95rem; }
+
+  /* ── CREATE FROM CONTACTS ── */
+  #contactgame-screen { gap:16px; }
+  #contactgame-screen h2 { color:var(--gold); font-size:1.8rem; }
+  .contact-select-row {
+    display:flex; align-items:center; gap:12px;
+    padding:11px 14px;
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; margin-bottom:8px; cursor:pointer;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  .contact-select-row:hover { background:rgba(255,255,255,0.12); }
+  .contact-select-row.selected { background:rgba(201,168,76,0.12); border-color:var(--gold); }
+  .contact-select-row .check { width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; font-size:0.75rem; flex-shrink:0; }
+  .contact-select-row.selected .check { background:var(--gold); border-color:var(--gold); color:var(--black); }
+  .contact-select-info { flex:1; }
+  .contact-select-name { font-size:1rem; font-weight:600; }
+  .contact-select-phone { font-size:0.82rem; opacity:0.55; }
+  .selected-count { font-size:0.9rem; opacity:0.65; text-align:center; }
+
   #toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -207,10 +261,14 @@
 
     <hr class="divider">
     <h3>Create a Game</h3>
-    <button class="btn-primary" onclick="createGame()">Create Game</button>
+    <button class="btn-primary" onclick="createGame()">Quick Game</button>
+    <button class="btn-secondary" onclick="showContactGame()" style="margin-top:6px;">From Contacts 👥</button>
 
     <hr class="divider">
-    <h3 style="text-align:center;">Table Theme</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="text-align:center;">Table Theme</h3>
+      <button class="btn-secondary" onclick="showContacts()" style="width:auto;padding:8px 14px;font-size:0.85rem;">👥 Contacts</button>
+    </div>
     <div class="theme-swatches" style="justify-content:center;">
       <div class="theme-swatch swatch-classic active" onclick="setTheme('classic')" title="Classic"></div>
       <div class="theme-swatch swatch-navy" onclick="setTheme('navy')" title="Midnight"></div>
@@ -218,6 +276,48 @@
       <div class="theme-swatch swatch-slate" onclick="setTheme('slate')" title="Slate"></div>
       <div class="theme-swatch swatch-walnut" onclick="setTheme('walnut')" title="Walnut"></div>
     </div>
+  </div>
+</div>
+
+<!-- CONTACTS MANAGER -->
+<div id="contacts-screen" class="screen">
+  <h2>Family Contacts</h2>
+
+  <div class="add-contact-form">
+    <h3 id="contact-form-title">Add Contact</h3>
+    <input class="input-field" id="contact-name-input" placeholder="Name" maxlength="20">
+    <input class="input-field" id="contact-phone-input" placeholder="Phone (optional)" maxlength="20" type="tel">
+    <div class="form-row">
+      <button class="btn-primary" onclick="saveContact()" style="font-size:0.95rem;padding:11px;">Save</button>
+      <button class="btn-secondary" onclick="cancelContactEdit()" id="cancel-edit-btn" style="display:none;width:auto;padding:11px 18px;">Cancel</button>
+    </div>
+  </div>
+
+  <div class="contacts-list" id="contacts-list">
+    <p style="opacity:0.5;text-align:center;font-size:0.9rem;">Loading contacts...</p>
+  </div>
+
+  <button class="btn-secondary" onclick="showScreen('home-screen')" style="max-width:440px;width:100%;">← Back</button>
+</div>
+
+<!-- CREATE FROM CONTACTS -->
+<div id="contactgame-screen" class="screen">
+  <h2>Start a Game</h2>
+
+  <div class="home-card" style="max-width:440px;">
+    <h3>Your Name</h3>
+    <input class="input-field" id="cg-name-input" placeholder="Enter your name" maxlength="20">
+  </div>
+
+  <div class="contacts-list" id="contactgame-list" style="max-width:440px;width:100%;">
+    <p style="opacity:0.5;text-align:center;font-size:0.9rem;">Loading contacts...</p>
+  </div>
+
+  <p class="selected-count" id="selected-count">0 players selected</p>
+
+  <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:440px;">
+    <button class="btn-primary" onclick="createGameFromContacts()">Create Game & Send Invites 📱</button>
+    <button class="btn-secondary" onclick="showScreen('home-screen')">← Back</button>
   </div>
 </div>
 
@@ -1373,7 +1473,197 @@ function handScore(cards) {
   return best;
 }
 
-// ── REJOIN / SESSION ─────────────────────────────────────
+// ── CONTACTS ─────────────────────────────────────────────
+let _contacts = [];
+let _editingContactId = null;
+let _selectedContacts = new Set();
+
+async function loadContacts() {
+  try {
+    const r = await fetch(`${API_BASE}/contacts`);
+    _contacts = await r.json();
+    return _contacts;
+  } catch(e) {
+    showToast('Could not load contacts');
+    return [];
+  }
+}
+
+async function showContacts() {
+  showScreen('contacts-screen');
+  _editingContactId = null;
+  document.getElementById('contact-name-input').value = '';
+  document.getElementById('contact-phone-input').value = '';
+  document.getElementById('contact-form-title').textContent = 'Add Contact';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+  await loadContacts();
+  renderContactsList();
+}
+
+function renderContactsList() {
+  const list = document.getElementById('contacts-list');
+  if (_contacts.length === 0) {
+    list.innerHTML = '<p style="opacity:0.5;text-align:center;font-size:0.9rem;padding:16px;">No contacts yet. Add your family members above.</p>';
+    return;
+  }
+  list.innerHTML = '';
+  _contacts.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'contact-row';
+    row.innerHTML = `
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-phone">${c.phone || 'No phone'}</div>
+      </div>
+      <div class="contact-actions">
+        <button class="btn-icon-sm" onclick="editContact('${c.id}')" title="Edit">✏️</button>
+        <button class="btn-icon-sm danger" onclick="deleteContact('${c.id}', '${c.name}')" title="Delete">🗑️</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+async function saveContact() {
+  const name = document.getElementById('contact-name-input').value.trim();
+  const phone = document.getElementById('contact-phone-input').value.trim();
+  if (!name) { showToast('Name is required'); return; }
+
+  try {
+    if (_editingContactId) {
+      await fetch(`${API_BASE}/contacts?id=${_editingContactId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone })
+      });
+      showToast(`${name} updated`);
+    } else {
+      await fetch(`${API_BASE}/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone })
+      });
+      showToast(`${name} added`);
+    }
+    cancelContactEdit();
+    await loadContacts();
+    renderContactsList();
+  } catch(e) {
+    showToast('Could not save contact');
+  }
+}
+
+function editContact(id) {
+  const c = _contacts.find(x => x.id === id);
+  if (!c) return;
+  _editingContactId = id;
+  document.getElementById('contact-name-input').value = c.name;
+  document.getElementById('contact-phone-input').value = c.phone || '';
+  document.getElementById('contact-form-title').textContent = 'Edit Contact';
+  document.getElementById('cancel-edit-btn').style.display = 'block';
+  document.getElementById('contact-name-input').focus();
+  window.scrollTo(0, 0);
+}
+
+function cancelContactEdit() {
+  _editingContactId = null;
+  document.getElementById('contact-name-input').value = '';
+  document.getElementById('contact-phone-input').value = '';
+  document.getElementById('contact-form-title').textContent = 'Add Contact';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+}
+
+async function deleteContact(id, name) {
+  if (!confirm(`Remove ${name} from contacts?`)) return;
+  try {
+    await fetch(`${API_BASE}/contacts?id=${id}`, { method: 'DELETE' });
+    showToast(`${name} removed`);
+    await loadContacts();
+    renderContactsList();
+  } catch(e) {
+    showToast('Could not delete contact');
+  }
+}
+
+// ── CREATE FROM CONTACTS ──────────────────────────────────
+async function showContactGame() {
+  showScreen('contactgame-screen');
+  _selectedContacts = new Set();
+  // Copy name from home screen if already entered
+  const homeName = document.getElementById('player-name-input').value.trim();
+  if (homeName) document.getElementById('cg-name-input').value = homeName;
+  await loadContacts();
+  renderContactGameList();
+}
+
+function renderContactGameList() {
+  const list = document.getElementById('contactgame-list');
+  if (_contacts.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:20px;opacity:0.6;">
+      <p>No contacts yet.</p>
+      <button class="btn-secondary" onclick="showContacts()" style="margin-top:10px;width:auto;padding:8px 16px;">Add Contacts</button>
+    </div>`;
+    return;
+  }
+  list.innerHTML = '';
+  _contacts.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'contact-select-row' + (_selectedContacts.has(c.id) ? ' selected' : '');
+    row.onclick = () => toggleContactSelect(c.id);
+    row.innerHTML = `
+      <div class="check">${_selectedContacts.has(c.id) ? '✓' : ''}</div>
+      <div class="contact-select-info">
+        <div class="contact-select-name">${c.name}</div>
+        <div class="contact-select-phone">${c.phone || 'No phone — will need to share code manually'}</div>
+      </div>`;
+    list.appendChild(row);
+  });
+  updateSelectedCount();
+}
+
+function toggleContactSelect(id) {
+  if (_selectedContacts.has(id)) _selectedContacts.delete(id);
+  else _selectedContacts.add(id);
+  renderContactGameList();
+}
+
+function updateSelectedCount() {
+  const n = _selectedContacts.size;
+  document.getElementById('selected-count').textContent =
+    n === 0 ? 'Select players to invite' : `${n} player${n!==1?'s':''} selected`;
+}
+
+async function createGameFromContacts() {
+  const name = document.getElementById('cg-name-input').value.trim();
+  if (!name) { showToast('Enter your name first'); return; }
+  if (_selectedContacts.size === 0) { showToast('Select at least one player'); return; }
+
+  // Set name on home screen too
+  document.getElementById('player-name-input').value = name;
+  me.name = name;
+  me.isHost = true;
+  me.gameCode = String(Math.floor(1000 + Math.random() * 9000));
+
+  // Connect first
+  await connectWS();
+
+  // Build SMS for players with phone numbers
+  const selected = _contacts.filter(c => _selectedContacts.has(c.id));
+  const withPhone = selected.filter(c => c.phone);
+  const withoutPhone = selected.filter(c => !c.phone);
+
+  if (withoutPhone.length > 0) {
+    showToast(`Note: ${withoutPhone.map(c=>c.name).join(', ')} have no phone — share code manually`);
+  }
+
+  if (withPhone.length > 0) {
+    // Build multi-recipient SMS
+    const numbers = withPhone.map(c => c.phone).join(',');
+    const body = `Hey! Join my ChitChat game 🃏\nGame code: ${me.gameCode}\n👉 ${GAME_URL}`;
+    setTimeout(() => {
+      window.location.href = `sms:${numbers}?&body=${encodeURIComponent(body)}`;
+    }, 800);
+  }
+}
 function checkForSession() {
   try {
     const saved = localStorage.getItem('cc_session');
