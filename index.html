@@ -636,6 +636,13 @@ function onMessage(msg) {
       startClientTimer();
       break;
 
+    case 'timer-stop':
+      // Freeze the bar — player acted
+      clearInterval(_clientTimer);
+      _clientTimer = null;
+      _turnStartTime = null;
+      break;
+
     case 'auto-knock':
       showToast(`⏰ Time's up — ${msg.player} is auto-knocked!`);
       break;
@@ -795,7 +802,6 @@ function broadcastPub() { broadcast({ type:'game-state', pub:publicG() }); }
 // ── HOST: ACTIONS ────────────────────────────────────────
 function hostDrawDeck(playerName) {
   if (G.phase !== 'draw') return;
-  // Validate hand size — should be exactly 3 before drawing
   if (G.hands[playerName] && G.hands[playerName].length !== 3) return;
   if (G.deck.length === 0) {
     const top = G.discard.pop();
@@ -811,10 +817,14 @@ function hostDrawDeck(playerName) {
   broadcast({ type:'deal-hand', playerName, hand: [...G.hands[playerName]] });
   if (playerName === me.name) myHand = [...G.hands[playerName]];
   broadcastPub(); renderGame(); updateOverlay();
+  // Start fresh timer for discard phase
+  startTurnTimer();
   if (handScore(G.hands[playerName]) === 31) {
+    stopTurnTimer(); // prevent auto-knock from firing
     setTimeout(() => showModal('31! 🎉', `${playerName} has 31! Everyone else loses a chip.`, [
       { label:'Continue', action:() => { hideModal(); applyLoss(playerName,true); hostEndRound(playerName,true); } }
     ]), 300);
+    return;
   }
 }
 
@@ -830,10 +840,14 @@ function hostDrawDiscard(playerName) {
   broadcast({ type:'deal-hand', playerName, hand: [...G.hands[playerName]] });
   if (playerName === me.name) myHand = [...G.hands[playerName]];
   broadcastPub(); renderGame(); updateOverlay();
+  // Start fresh timer for discard phase
+  startTurnTimer();
   if (handScore(G.hands[playerName]) === 31) {
+    stopTurnTimer();
     setTimeout(() => showModal('31! 🎉', `${playerName} has 31! Everyone else loses a chip.`, [
       { label:'Continue', action:() => { hideModal(); applyLoss(playerName,true); hostEndRound(playerName,true); } }
     ]), 300);
+    return;
   }
 }
 
@@ -1083,7 +1097,8 @@ function updateOverlay() {
   if (isMyTurn()) {
     ov.classList.remove('show');
     clearInterval(window._quipTimer);
-    startClientTimer(); // show timer bar for active player too
+    // Only restart client timer if there's an active turn timer
+    if (_turnStartTime) startClientTimer();
     return;
   }
   ov.classList.add('show');
@@ -1099,7 +1114,8 @@ function updateOverlay() {
   setQuip();
   clearInterval(window._quipTimer);
   window._quipTimer = setInterval(setQuip, 4000);
-  startClientTimer(); // show timer bar for waiting players too
+  // Only show timer bar if there's an active timer
+  if (_turnStartTime) startClientTimer();
 }
 
 // ── TURN TIMER ───────────────────────────────────────────
@@ -1127,11 +1143,13 @@ function stopTurnTimer() {
   _turnTimer = null;
   _clientTimer = null;
   _turnStartTime = null;
+  // Broadcast stop so all clients freeze their bars
+  if (me.isHost) broadcast({ type:'timer-stop' });
   // Reset bar
   const bar = document.getElementById('timer-bar');
   const label = document.getElementById('timer-label');
   if (bar) { bar.style.width = '100%'; bar.className = 'timer-bar'; }
-  if (label) label.textContent = '';
+  if (label) label.textContent = ''; 
 }
 
 function startClientTimer() {
