@@ -219,11 +219,14 @@
 <div id="rejoin-screen" class="screen">
   <div class="title-block">
     <h1>ChitChat</h1>
-    <p>You were in a game!</p>
+    <p>Welcome back!</p>
   </div>
   <div class="home-card" style="text-align:center;gap:16px;">
     <p id="rejoin-msg" style="opacity:0.8;font-size:1.05rem;line-height:1.6;"></p>
-    <button class="btn-primary" onclick="rejoinGame()">Rejoin Game</button>
+    <p id="rejoin-host-warning" style="color:#e74c3c;font-size:0.9rem;display:none;line-height:1.5;">
+      ⚠️ You were the host. Refreshing loses the game — everyone will need to start over.
+    </p>
+    <button class="btn-primary" id="rejoin-btn" onclick="rejoinGame()">Rejoin Game</button>
     <button class="btn-secondary" onclick="abandonGame()">Start Fresh</button>
   </div>
 </div>
@@ -1256,11 +1259,20 @@ function checkForSession() {
     if (!saved) return;
     const session = JSON.parse(saved);
     if (!session.name || !session.gameCode) return;
-    // Show rejoin screen
+
     document.getElementById('rejoin-msg').textContent =
-      `${session.name} · Game ${session.gameCode} · ${session.isHost ? 'Host' : 'Player'}`;
+      `${session.name} · Game ${session.gameCode}`;
+
+    // Show warning if they were the host
+    if (session.isHost) {
+      document.getElementById('rejoin-host-warning').style.display = 'block';
+      document.getElementById('rejoin-btn').textContent = 'Start New Game';
+    } else {
+      document.getElementById('rejoin-host-warning').style.display = 'none';
+      document.getElementById('rejoin-btn').textContent = 'Rejoin Game';
+    }
+
     showScreen('rejoin-screen');
-    // Store session for rejoin
     window._savedSession = session;
   } catch(e) {
     localStorage.removeItem('cc_session');
@@ -1270,18 +1282,79 @@ function checkForSession() {
 async function rejoinGame() {
   const session = window._savedSession;
   if (!session) { showScreen('home-screen'); return; }
-  me = { name: session.name, gameCode: session.gameCode, isHost: session.isHost };
-  // Non-host rejoins — host may have moved on, we request state
-  me.isHost = false; // safe default — don't take over as host on rejoin
-  await connectWS();
-  // After connecting, show game screen if game was in progress
-  setTimeout(() => {
-    if (G.gameStarted) {
-      showScreen('game-screen');
-      renderGame();
-      updateOverlay();
-    }
-  }, 1500);
+
+  // Host can't recover from refresh — game state is gone
+  if (session.isHost) {
+    showModal('Host Refresh', 'As the host, refreshing loses the game state. You\'ll need to start a new game and have everyone rejoin.', [
+      { label: 'Start New Game', action: () => { hideModal(); abandonGame(); } }
+    ]);
+    return;
+  }
+
+  me = { name: session.name, gameCode: session.gameCode, isHost: false };
+  showToast('Rejoining...');
+
+  try {
+    const r = await fetch(`${API_BASE}/negotiate?playerName=${encodeURIComponent(me.name)}&gameCode=${me.gameCode}`);
+    const d = await r.json();
+    ws = new WebSocket(d.url, 'json.webpubsub.azure.v1');
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type:'joinGroup', group:me.gameCode }));
+      broadcast({ type:'player-joined', name:me.name, isHost:false });
+      // Request state and hand
+      setTimeout(() => broadcast({ type:'request-state', playerName:me.name }), 600);
+      startHeartbeat();
+    };
+
+    ws.onmessage = evt => {
+      try {
+        const env = JSON.parse(evt.data);
+        const msg = env.data ? (typeof env.data === 'string' ? JSON.parse(env.data) : env.data) : env;
+        // On first game-state received after rejoin, go to game screen
+        if (msg.type === 'game-state' && msg.pub && msg.pub.gameStarted) {
+          Object.assign(G, msg.pub);
+          showScreen('game-screen');
+          renderGame();
+          setTimeout(updateOverlay, 50);
+        } else if (msg.type === 'deal-hand' && msg.playerName === me.name) {
+          myHand = msg.hand;
+          renderHand();
+          document.getElementById('hand-score').textContent = handScore(myHand);
+        } else if (msg.type === 'lobby-state') {
+          // Game not started yet — go to lobby
+          G.lobbyPlayers = msg.players;
+          showLobby();
+          renderLobby();
+        } else {
+          onMessage(msg);
+        }
+      } catch(e) {}
+    };
+
+    ws.onclose = () => {
+      stopHeartbeat();
+      showToast('Still disconnected — retrying...');
+      setTimeout(() => reconnect(), 3000);
+    };
+
+    ws.onerror = () => { showToast('Could not rejoin — try joining manually'); };
+
+    // Switch to normal message handler after 3 seconds
+    setTimeout(() => {
+      if (ws) ws.onmessage = evt => {
+        try {
+          const env = JSON.parse(evt.data);
+          const msg = env.data ? (typeof env.data === 'string' ? JSON.parse(env.data) : env.data) : env;
+          onMessage(msg);
+        } catch(e) {}
+      };
+    }, 3000);
+
+  } catch(e) {
+    showToast('Could not rejoin — try joining manually');
+    abandonGame();
+  }
 }
 
 function abandonGame() {
