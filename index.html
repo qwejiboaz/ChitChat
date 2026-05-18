@@ -93,6 +93,12 @@
   .turn-banner .whose-turn { font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold); }
   .turn-banner .sub { font-size:0.8rem;opacity:0.7;margin-top:1px; }
 
+  .timer-bar-wrap { width:100%;height:5px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:7px;overflow:hidden; }
+  .timer-bar { height:100%;width:100%;border-radius:4px;background:var(--gold);transition:width 1s linear, background 0.5s; }
+  .timer-bar.warning { background:#e67e22; }
+  .timer-bar.danger  { background:#e74c3c; }
+  .timer-label { font-size:0.7rem;opacity:0.5;margin-top:2px;text-align:right; }
+
   .hand-area { background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;flex-shrink:0; }
   .hand-label { font-size:0.75rem;opacity:0.6;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px; }
   .cards-row { display:flex;gap:10px;justify-content:center; }
@@ -270,6 +276,10 @@
   <div class="turn-banner">
     <div class="whose-turn" id="whose-turn"></div>
     <div class="sub" id="turn-sub"></div>
+    <div class="timer-bar-wrap" id="timer-bar-wrap">
+      <div class="timer-bar" id="timer-bar"></div>
+    </div>
+    <div class="timer-label" id="timer-label"></div>
   </div>
 
   <div class="table-area">
@@ -621,6 +631,15 @@ function onMessage(msg) {
       }
       break;
 
+    case 'timer-start':
+      _turnStartTime = msg.startTime;
+      startClientTimer();
+      break;
+
+    case 'auto-knock':
+      showToast(`⏰ Time's up — ${msg.player} is auto-knocked!`);
+      break;
+
     case 'ping': break; // heartbeat, ignore
 
     case 'action':
@@ -739,6 +758,8 @@ function hostDeal() {
 
   broadcastPub();
   renderGame(); updateOverlay();
+  // Start timer for first player
+  startTurnTimer();
 
   // Check instant 31
   setTimeout(() => {
@@ -853,10 +874,12 @@ function hostAdvance() {
   }
 
   G.currentIdx = next;
-  G.phase = 'draw';  // ensure phase resets after discard
+  G.phase = 'draw';
   broadcastPub();
   renderGame();
   updateOverlay();
+  // Host starts the turn timer
+  startTurnTimer();
 }
 
 function buildScores() {
@@ -881,6 +904,7 @@ function loseChip(p) {
 }
 
 function hostEndRound(instant31Winner, isInstant) {
+  stopTurnTimer();
   const scores = buildScores();
   const active = scores.filter(s => s.score >= 0);
   const maxScore = Math.max(...active.map(s => s.score));
@@ -919,11 +943,11 @@ function isMyTurn() {
 
 function drawFromDeck() {
   if (!isMyTurn() || G.phase !== 'draw') return;
+  stopTurnTimer();
   if (me.isHost) {
     hostDrawDeck(me.name);
   } else {
     broadcast({ type:'action', action:'draw-deck', player:me.name });
-    // Optimistically disable buttons to prevent double-tap
     document.getElementById('btn-draw-deck').disabled = true;
     document.getElementById('btn-draw-discard').disabled = true;
   }
@@ -932,6 +956,7 @@ function drawFromDeck() {
 function drawFromDiscard() {
   if (!isMyTurn() || G.phase !== 'draw') return;
   if (!G.discard || !G.discard.length) return;
+  stopTurnTimer();
   if (me.isHost) {
     hostDrawDiscard(me.name);
   } else {
@@ -956,6 +981,7 @@ function discardSelected() {
 
 function knock() {
   if (!isMyTurn() || G.phase !== 'draw') return;
+  stopTurnTimer();
   if (me.isHost) {
     hostKnock(me.name);
   } else {
@@ -1057,6 +1083,7 @@ function updateOverlay() {
   if (isMyTurn()) {
     ov.classList.remove('show');
     clearInterval(window._quipTimer);
+    startClientTimer(); // show timer bar for active player too
     return;
   }
   ov.classList.add('show');
@@ -1072,6 +1099,82 @@ function updateOverlay() {
   setQuip();
   clearInterval(window._quipTimer);
   window._quipTimer = setInterval(setQuip, 4000);
+  startClientTimer(); // show timer bar for waiting players too
+}
+
+// ── TURN TIMER ───────────────────────────────────────────
+const TURN_SECONDS = 45;
+let _turnTimer = null;
+let _clientTimer = null;
+let _turnStartTime = null;
+
+function startTurnTimer() {
+  // Only host runs the authoritative timer
+  if (!me.isHost) return;
+  clearTimeout(_turnTimer);
+  _turnStartTime = Date.now();
+  // Broadcast timer start so all clients can show the bar
+  broadcast({ type:'timer-start', seconds: TURN_SECONDS, startTime: _turnStartTime });
+  startClientTimer();
+  _turnTimer = setTimeout(() => {
+    hostAutoKnock();
+  }, TURN_SECONDS * 1000);
+}
+
+function stopTurnTimer() {
+  clearTimeout(_turnTimer);
+  clearInterval(_clientTimer);
+  _turnTimer = null;
+  _clientTimer = null;
+  _turnStartTime = null;
+  // Reset bar
+  const bar = document.getElementById('timer-bar');
+  const label = document.getElementById('timer-label');
+  if (bar) { bar.style.width = '100%'; bar.className = 'timer-bar'; }
+  if (label) label.textContent = '';
+}
+
+function startClientTimer() {
+  clearInterval(_clientTimer);
+  if (!_turnStartTime) return;
+  const bar = document.getElementById('timer-bar');
+  const label = document.getElementById('timer-label');
+  if (!bar) return;
+
+  const tick = () => {
+    const elapsed = (Date.now() - _turnStartTime) / 1000;
+    const remaining = Math.max(0, TURN_SECONDS - elapsed);
+    const pct = (remaining / TURN_SECONDS) * 100;
+
+    bar.style.width = pct + '%';
+    label.textContent = Math.ceil(remaining) + 's';
+
+    if (pct <= 20) bar.className = 'timer-bar danger';
+    else if (pct <= 45) bar.className = 'timer-bar warning';
+    else bar.className = 'timer-bar';
+
+    // Warn active player at 15 seconds
+    if (isMyTurn() && Math.ceil(remaining) === 15) {
+      showToast('⏰ 15 seconds — hurry up!');
+    }
+    // Warn at 5 seconds
+    if (isMyTurn() && Math.ceil(remaining) === 5) {
+      showToast('⚠️ 5 seconds — auto-knock incoming!');
+    }
+  };
+
+  tick();
+  _clientTimer = setInterval(tick, 500);
+}
+
+function hostAutoKnock() {
+  if (!me.isHost || !G.players) return;
+  const cp = G.players[G.currentIdx];
+  if (!cp || cp.eliminated) return;
+  stopTurnTimer();
+  showToast(`⏰ Time's up — ${cp.name} is auto-knocked!`);
+  broadcast({ type:'auto-knock', player: cp.name });
+  hostKnock(cp.name);
 }
 
 const QUIPS = [
